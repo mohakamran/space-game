@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galactic Defender</title>
+    <!-- Load Tailwind CSS for surrounding UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        /* Custom styles for the space shooter theme */
+        body {
+            background-color: #0d0d1a; /* Very dark blue/purple for deep space */
+            font-family: 'Orbitron', sans-serif;
+            color: #d1d5db;
+        }
+
+        #gameCanvas {
+            background-color: #00000a; /* Black canvas background */
+            border: 3px solid #00f0ff; /* Neon blue border */
+            box-shadow: 0 0 20px #00f0ff, inset 0 0 10px rgba(0, 240, 255, 0.5);
+            touch-action: none; /* Prevent unwanted touch gestures */
+        }
+
+        .game-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-card {
+            background-color: #1a1a33;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            border: 1px solid #00f0ff;
+        }
+
+        .btn-neon {
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px #f0ff00;
+            box-shadow: 0 0 10px #f0ff00;
+            border: 2px solid #f0ff00;
+        }
+
+        .btn-neon:active {
+            transform: scale(0.95);
+            background-color: #f0ff00;
+            color: #1a1a33;
+        }
+        
+        /* New style for the restart button to make it pop */
+        .btn-restart {
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px #ff4444;
+            box-shadow: 0 0 10px #ff4444;
+            border: 2px solid #ff4444;
+        }
+
+        .btn-restart:hover {
+            background-color: #ff4444;
+            color: #ffffff;
+            box-shadow: 0 0 20px #ff4444;
+        }
+
+        /* Responsive Canvas resizing */
+        @media (max-width: 768px) {
+            #gameCanvas {
+                width: 95vw;
+                /* Updated aspect ratio for 600x800 canvas (4:3) */
+                height: calc(95vw * 1.3333); 
+            }
+            
+            /* Ensure controls are fixed at the bottom on mobile */
+            .mobile-dpad-container {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
+                /* Make it semi-transparent so it doesn't totally hide the game context */
+                background-color: rgba(13, 13, 26, 0.95); 
+                border-top: 2px solid #00f0ff;
+                padding: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="game-container">
+        <h1 class="text-3xl font-bold text-center mb-6 text-yellow-400">GALACTIC DEFENDER</h1>
+
+        <!-- Canvas - Reduced height to 800px -->
+        <canvas id="gameCanvas" width="600" height="800" class="rounded-lg shadow-xl mb-6"></canvas>
+
+        <!-- Stats and Restart Panel (Now a flexible row on desktop) -->
+        <div class="flex flex-col md:flex-row justify-between items-center w-full mb-6 gap-4">
+            <!-- Score (Left) -->
+            <div id="scoreDisplay" class="stat-card w-full md:w-auto">Score: 0</div>
+            
+            <!-- Restart Button (Center) - Hidden until Game Over -->
+            <button id="restartButton" class="btn-restart px-8 py-3 rounded-full text-xl bg-gray-900 text-red-400 hidden">
+                RESTART GAME
+            </button>
+            
+            <!-- Weapon Level (Right) -->
+            <div id="levelDisplay" class="stat-card text-purple-400 w-full md:w-auto">Weapon Level: 1</div>
+        </div>
+
+        <!-- Controls/Message Area -->
+        <div id="messageBox" class="text-center text-lg text-green-400 mb-4 h-8">
+            Dodge and Destroy! Use WASD or Arrow Keys to move.
+        </div>
+
+        <!-- Mobile Controls (for touch devices) - D-pad style layout -->
+        <div class="mobile-dpad-container flex flex-col items-center gap-2 w-full md:hidden">
+            <!-- Up Button -->
+            <button id="moveUp" class="btn-neon px-8 py-3 rounded-full text-xl bg-gray-900 text-yellow-400">
+                &#9650; Up
+            </button>
+            
+            <div class="flex justify-center gap-8 w-full">
+                <!-- Left Button -->
+                <button id="moveLeft" class="btn-neon px-8 py-4 rounded-full text-xl bg-gray-900 text-yellow-400">
+                    &#9664; Left
+                </button>
+                <!-- Right Button -->
+                <button id="moveRight" class="btn-neon px-8 py-4 rounded-full text-xl bg-gray-900 text-yellow-400">
+                    Right &#9654;
+                </button>
+            </div>
+            
+            <!-- Down Button -->
+            <button id="moveDown" class="btn-neon px-8 py-3 rounded-full text-xl bg-gray-900 text-yellow-400">
+                &#9660; Down
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const messageBox = document.getElementById('messageBox');
+        const restartButton = document.getElementById('restartButton'); 
+        
+        let gameState = {
+            running: false,
+            score: 0,
+            isPaused: false
+        };
+
+        // --- Base Game Constants for Scaling ---
+        const PLAYER_SPEED = 7;
+        const BASE_BULLET_SPEED = 10;
+        const BASE_ENEMY_SPEED_MIN = 1;
+        const BASE_ENEMY_SPEED_MAX = 4;
+        const BASE_SPAWN_INTERVAL = 1000; // ms
+        const BASE_PLAYER_COOLDOWN = 300; // ms
+
+        // Difficulty and Leveling parameters
+        const DIFFICULTY_TICK = 1800; // Increase difficulty every 30 seconds (1800 frames at ~60fps)
+        const SCORE_PER_LEVEL = 350; // Score required for player weapon upgrade
+        
+        // Continuous scaling starts after 1 minute
+        const CONTINUOUS_SCALING_START_TIME = 3600; // 60 seconds * 60 frames/sec
+
+        let gameTime = 0; // Tracks elapsed time for difficulty scaling
+        let difficultyLevel = 1;
+
+        // --- Object Constants ---
+        const PLAYER_WIDTH = 30; 
+        const PLAYER_HEIGHT = 30; 
+        const BULLET_SIZE = 4;
+        const ENEMY_SIZE = 30;
+
+        let player = {
+            x: canvas.width / 2 - PLAYER_WIDTH / 2,
+            y: canvas.height - PLAYER_HEIGHT - 150, 
+            width: PLAYER_WIDTH,
+            height: PLAYER_HEIGHT,
+            dx: 0, 
+            dy: 0, 
+            canShoot: true,
+            lastShotTime: 0,
+            // Dynamic stats
+            cooldown: BASE_PLAYER_COOLDOWN, 
+            bulletSpeed: BASE_BULLET_SPEED,
+            level: 1,
+        };
+
+        let bullets = [];
+        let enemies = [];
+        let lastEnemySpawnTime = 0;
+        let animationFrameId;
+
+        // --- Input Handling ---
+        let keys = {};
+        
+        // Key map including WASD and Arrows for all four directions
+        const keyMap = {
+            'ArrowLeft': 'left', 'a': 'left', 'A': 'left',
+            'ArrowRight': 'right', 'd': 'right', 'D': 'right',
+            'ArrowUp': 'up', 'w': 'up', 'W': 'up',
+            'ArrowDown': 'down', 's': 'down', 'S': 'down',
+            'p': 'pause', 'P': 'pause'
+        };
+
+        const keyDownHandler = (e) => {
+            const action = keyMap[e.key];
+            if (action) {
+                e.preventDefault();
+                keys[action] = true;
+            }
+        };
+
+        const keyUpHandler = (e) => {
+            const action = keyMap[e.key];
+            if (action) {
+                e.preventDefault();
+                keys[action] = false;
+                if (action === 'pause') togglePause();
+            }
+        };
+
+        let listenersAttached = false;
+        const attachListenersOnlyOnce = () => {
+            if (!listenersAttached) {
+                document.addEventListener('keydown', keyDownHandler);
+                document.addEventListener('keyup', keyUpHandler);
+                
+                restartButton.addEventListener('click', initGame);
+
+                // Get mobile controls
+                const moveLeftBtn = document.getElementById('moveLeft');
+                const moveRightBtn = document.getElementById('moveRight');
+                const moveUpBtn = document.getElementById('moveUp'); 
+                const moveDownBtn = document.getElementById('moveDown');
+
+                // Helper to attach touch and mouse events for continuous movement
+                const attachControl = (button, key) => {
+                    if (button) {
+                        // Touch start/end (Crucial for mobile)
+                        button.addEventListener('touchstart', (e) => { 
+                            e.preventDefault(); 
+                            keys[key] = true; 
+                        }, { passive: false });
+                        button.addEventListener('touchend', () => keys[key] = false);
+
+                        // Mouse down/up/leave (For desktop testing/compatibility)
+                        button.addEventListener('mousedown', () => keys[key] = true);
+                        button.addEventListener('mouseup', () => keys[key] = false);
+                        // Ensures key is released if touch/mouse leaves the button area while held
+                        button.addEventListener('mouseleave', () => keys[key] = false);
+                    }
+                };
+
+                attachControl(moveLeftBtn, 'left');
+                attachControl(moveRightBtn, 'right');
+                attachControl(moveUpBtn, 'up'); 
+                attachControl(moveDownBtn, 'down'); 
+
+                listenersAttached = true;
+            }
+        }
+        
+        // --- Game Functions ---
+
+        const drawPlayer = () => {
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Cyan/Blue glow
+            
+            // Draw a futuristic ship (simple triangle)
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width / 2, player.y);
+            ctx.lineTo(player.x, player.y + player.height);
+            ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Thruster fire (yellow/orange)
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+            ctx.fillRect(player.x + player.width * 0.2, player.y + player.height, player.width * 0.6, 5);
+        };
+
+        const drawBullets = () => {
+            // Bullet color changes based on level for visual feedback
+            const colorHue = 300 - (player.level * 10) % 360; 
+            ctx.fillStyle = `hsl(${colorHue}, 100%, 70%)`; 
+
+            bullets.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, BULLET_SIZE, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        };
+
+        const drawEnemies = () => {
+            enemies.forEach(e => {
+                // Drawing a simple asteroid shape (brown/grey circle)
+                ctx.fillStyle = 'rgba(100, 100, 100, 0.8)';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+        };
+
+        const tryShoot = () => {
+            const now = Date.now();
+            if (gameState.running && player.canShoot && (now - player.lastShotTime > player.cooldown)) {
+                player.lastShotTime = now;
+                
+                let bulletsToFire = [];
+
+                // Base Center Shot (Level 1+)
+                bulletsToFire.push({
+                    x: player.x + player.width / 2,
+                    y: player.y,
+                    dy: -player.bulletSpeed,
+                    dx: 0 // Straight shot
+                });
+
+                if (player.level >= 2) {
+                    // Spread Shots (Level 2+)
+                    const spreadDistance = player.width * 0.5;
+                    const spreadAngleFactor = 0.8; // Controls horizontal spread speed
+
+                    // Left Spread Bullet
+                    bulletsToFire.push({
+                        x: player.x + player.width / 2 - spreadDistance,
+                        y: player.y,
+                        dy: -player.bulletSpeed,
+                        dx: -spreadAngleFactor 
+                    });
+
+                    // Right Spread Bullet
+                    bulletsToFire.push({
+                        x: player.x + player.width / 2 + spreadDistance,
+                        y: player.y,
+                        dy: -player.bulletSpeed,
+                        dx: spreadAngleFactor
+                    });
+                }
+                
+                bullets.push(...bulletsToFire);
+            }
+        };
+
+        const spawnEnemy = () => {
+            // 1. Difficulty Level Scaling (Discrete) based on DIFFICULTY_TICK
+            // Interval decreases by 50ms per difficulty level, min 200ms
+            const currentSpawnIntervalBase = Math.max(200, BASE_SPAWN_INTERVAL - (difficultyLevel - 1) * 50);
+
+            // 2. Continuous Time Scaling (Starts after 1 minute)
+            let timeBonusReduction = 0;
+            if (gameTime > CONTINUOUS_SCALING_START_TIME) {
+                // How many frames past the start time?
+                const timePassed = gameTime - CONTINUOUS_SCALING_START_TIME;
+                // Reduce the interval by 1ms every 10 frames after 1 minute 
+                // (This is a smooth, continuous increase in spawn frequency)
+                timeBonusReduction = Math.floor(timePassed / 10) * 1; 
+            }
+            
+            // Apply the reduction, ensuring an absolute minimum interval of 150ms
+            const finalSpawnInterval = Math.max(150, currentSpawnIntervalBase - timeBonusReduction);
+
+            // Max speed increases by 0.5 per difficulty level
+            const currentEnemySpeedMax = BASE_ENEMY_SPEED_MAX + (difficultyLevel - 1) * 0.5;
+
+            if (Date.now() - lastEnemySpawnTime > finalSpawnInterval) {
+                enemies.push({
+                    x: Math.random() * (canvas.width - ENEMY_SIZE) + ENEMY_SIZE / 2,
+                    y: -ENEMY_SIZE,
+                    size: ENEMY_SIZE,
+                    // Enemy speed uses the calculated max speed
+                    dy: BASE_ENEMY_SPEED_MIN + Math.random() * (currentEnemySpeedMax - BASE_ENEMY_SPEED_MIN)
+                });
+                lastEnemySpawnTime = Date.now();
+            }
+        };
+
+        const updatePlayer = () => {
+            // Horizontal movement logic
+            player.dx = 0;
+            const movingLeft = keys['left'];
+            const movingRight = keys['right'];
+
+            if (movingLeft && !movingRight) {
+                player.dx = -PLAYER_SPEED;
+            } else if (movingRight && !movingLeft) {
+                player.dx = PLAYER_SPEED;
+            }
+            
+            player.x += player.dx;
+
+            // Vertical movement logic 
+            player.dy = 0;
+            const movingUp = keys['up'];
+            const movingDown = keys['down'];
+
+            if (movingUp && !movingDown) {
+                player.dy = -PLAYER_SPEED;
+            } else if (movingDown && !movingUp) {
+                player.dy = PLAYER_SPEED;
+            }
+
+            player.y += player.dy;
+
+            // Boundary check - Horizontal
+            if (player.x < 0) {
+                player.x = 0;
+            } else if (player.x + player.width > canvas.width) {
+                player.x = canvas.width - player.width;
+            }
+            
+            // Boundary check - Vertical
+            if (player.y < 0) {
+                player.y = 0;
+            } else if (player.y + player.height > canvas.height) {
+                player.y = canvas.height - player.height;
+            }
+        };
+
+        const updateBullets = () => {
+            bullets = bullets.map(b => {
+                b.y += b.dy;
+                b.x += b.dx; // Apply horizontal movement for spread shots
+                return b;
+            }).filter(b => b.y > -BULLET_SIZE && b.x > -BULLET_SIZE && b.x < canvas.width + BULLET_SIZE); 
+        };
+
+        const updateEnemies = () => {
+            enemies = enemies.map(e => {
+                e.y += e.dy;
+                return e;
+            }).filter(e => {
+                return e.y < canvas.height + ENEMY_SIZE;
+            });
+        };
+
+        const updatePlayerStats = () => {
+            // Weapon is stronger: faster reduction and higher speed increase
+            
+            // Decrease Cooldown (faster fire rate), minimum 50ms
+            player.cooldown = Math.max(50, BASE_PLAYER_COOLDOWN - (player.level - 1) * 60); 
+            
+            // Increase Bullet Speed
+            player.bulletSpeed = BASE_BULLET_SPEED + (player.level - 1) * 3; 
+        };
+
+        const checkCollisions = () => {
+            // Bullet-Enemy Collision
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const e = enemies[j];
+
+                    // Simple AABB collision check (for circle enemy and point bullet)
+                    const distSq = (b.x - e.x) * (b.x - e.x) + (b.y - e.y) * (b.y - e.y);
+                    if (distSq < (e.size / 2) * (e.size / 2)) {
+                        // Collision!
+                        bullets.splice(i, 1);
+                        enemies.splice(j, 1);
+                        gameState.score += 10;
+                        updateStats();
+                        break; // Move to the next bullet
+                    }
+                }
+            }
+
+            // Player-Enemy Collision (INSTANT GAME OVER)
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const e = enemies[j];
+
+                // Precise AABB-to-AABB collision check. 
+                const dx = Math.abs(e.x - (player.x + player.width / 2));
+                const dy = Math.abs(e.y - (player.y + player.height / 2));
+
+                if (dx <= (player.width / 2 + e.size / 2) && dy <= (player.height / 2 + e.size / 2)) {
+                    // Collision! Trigger instant game over.
+                    gameOver();
+                    break;
+                }
+            }
+        };
+
+        const updateStats = () => {
+            scoreDisplay.textContent = `Score: ${gameState.score}`;
+            levelDisplay.textContent = `Weapon Level: ${player.level}`;
+        };
+
+        const drawMessage = (text, color = '#ff00ff', size = 48) => {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px Orbitron`;
+            ctx.textAlign = 'center';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        };
+
+        const togglePause = () => {
+            if (!gameState.running) return;
+
+            gameState.isPaused = !gameState.isPaused;
+            if (gameState.isPaused) {
+                cancelAnimationFrame(animationFrameId);
+                messageBox.textContent = "GAME PAUSED (Press P to resume)";
+                drawMessage('PAUSED', '#00f0ff', 40);
+            } else {
+                messageBox.textContent = `Difficulty Level ${difficultyLevel}. Dodge and Destroy! Use WASD or Arrow Keys to move.`;
+                gameLoop();
+            }
+        };
+
+        const gameOver = () => {
+            gameState.running = false;
+            cancelAnimationFrame(animationFrameId);
+            messageBox.textContent = `GAME OVER! Final Score: ${gameState.score}. Press RESTART GAME to try again!`;
+            drawMessage('GAME OVER', '#ff4444', 60);
+            drawMessage(`Final Score: ${gameState.score}`, '#d1d5db', 24);
+            
+            // Show the restart button
+            restartButton.classList.remove('hidden');
+        };
+
+        const initGame = () => {
+            gameState.running = true;
+            gameState.score = 0;
+            gameState.isPaused = false;
+            
+            // Hide the restart button
+            restartButton.classList.add('hidden');
+            
+            // Difficulty and Player Level reset
+            gameTime = 0;
+            difficultyLevel = 1;
+            player.level = 1;
+            player.cooldown = BASE_PLAYER_COOLDOWN;
+            player.bulletSpeed = BASE_BULLET_SPEED;
+            
+            keys = {}; 
+            bullets = [];
+            enemies = [];
+            player.x = canvas.width / 2 - player.width / 2;
+            // Player y position relative to the 800px height
+            player.y = canvas.height - player.height - 150; 
+            
+            updateStats();
+            messageBox.textContent = "Dodge and Destroy! Use WASD/Arrows to move on Desktop, or use the on-screen controls.";
+            
+            attachListenersOnlyOnce();
+
+            // Start the game loop
+            gameLoop();
+        };
+        
+        const update = () => {
+            if (gameState.isPaused || !gameState.running) return;
+            
+            // --- Difficulty and Leveling Checks ---
+            gameTime++;
+
+            // Time-based Enemy Scaling (Discrete)
+            if (gameTime % DIFFICULTY_TICK === 0) {
+                difficultyLevel++;
+                messageBox.textContent = `Difficulty Level Up! Enemies are faster (Level ${difficultyLevel}).`;
+            }
+
+            // Score-based Player Upgrades
+            const newPlayerLevel = Math.floor(gameState.score / SCORE_PER_LEVEL) + 1;
+            if (newPlayerLevel > player.level) {
+                player.level = newPlayerLevel;
+                updatePlayerStats(); // Update player weapon stats on level up
+                messageBox.textContent = `Weapon Upgrade! Triple shot unlocked at Level ${player.level}!`;
+            }
+
+            // Firing is now automatic
+            tryShoot(); 
+            
+            updatePlayer();
+            updateBullets();
+            updateEnemies();
+            spawnEnemy();
+            checkCollisions();
+        };
+
+        const draw = () => {
+            if (!gameState.running) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Redraw background effect
+            ctx.fillStyle = '#00000a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawPlayer();
+            drawBullets();
+            drawEnemies();
+        };
+
+        const gameLoop = () => {
+            if (!gameState.running || gameState.isPaused) return;
+
+            update();
+            draw();
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        };
+
+        window.onload = function() {
+            initGame();
+        };
+    </script>
+</body>
+</html>
