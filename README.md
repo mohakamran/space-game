@@ -1,92 +1,72 @@
-🌌 Galactic Defender
+# 🌌 Galactic Defender
 
-Galactic Defender is a fast-paced, classic-style 2D vertical space shooter built entirely with native web technologies. Pilot your ship, dodge incoming asteroids and enemy debris, and destroy them to upgrade your weapon systems and achieve the highest score!
+**Galactic Defender** is a fast-paced, classic-style **2D vertical space shooter** built using **pure HTML, CSS (Tailwind), and Vanilla JavaScript**.  
+Pilot your ship, dodge incoming asteroids, destroy enemies, upgrade your weapons, and survive as long as you can!
 
-🚀 Live Demo: https://mohakamran.github.io/space-game/
+---
 
-Experience the action instantly!
+## 🚀 Live Demo
 
-Play Galactic Defender Live!
+▶️ **Play Now:** https://mohakamran.github.io/space-game/  
+Experience the game instantly — no installation required!
 
-📸 Screenshot Preview
+---
 
-Below is a preview of the game in action:
+## 📸 Screenshot Preview
 
-✨ Features
+![Game Screenshot](Screenshot.png)
 
-Responsive Gameplay: Optimized for both desktop and mobile devices.
+*A glimpse of the Galactic Defender gameplay.*
 
-Dual Control Scheme: Use Arrow Keys/WASD on desktop or the dedicated on-screen D-pad for mobile and tablet play.
+---
 
-Progressive Difficulty: Enemies increase in speed and spawn frequency over time.
+## ✨ Features
 
-Weapon Upgrade System: Achieve score milestones to increase fire rate and unlock powerful spread shots (Triple Shot).
+- **Responsive Gameplay** — Fully optimized for desktop, tablet, and mobile devices.
+- **Dual Control Scheme**  
+  - Desktop: Arrow Keys / WASD  
+  - Mobile/Tablet: On-screen D-pad
+- **Progressive Difficulty** — Enemies become faster and more frequent over time.
+- **Weapon Upgrade System** — Hit score milestones to increase fire rate and unlock **Triple-Shot**.
+- **Real-Time Statistics** — Live score and weapon level display.
+- **Neon Aesthetic** — Bright neon visuals on a dark space backdrop.
 
-Real-Time Statistics: Track your score and weapon level instantly.
+---
 
-Neon Aesthetic: A dark space theme with vibrant neon elements for high-contrast visibility.
+## 🕹️ How to Play
 
-🕹️ How to Play
+### **Controls**
 
-Controls
+| Device        | Action       | Input                         |
+|---------------|--------------|-------------------------------|
+| Desktop       | Move Ship    | W / A / S / D or Arrow Keys   |
+| Desktop       | Pause Game   | P                             |
+| Mobile/Tablet | Move Ship    | On-Screen D-Pad               |
+| All Devices   | Fire         | Automatic                     |
 
-Device
+---
 
-Action
+### **Objective**
 
-Input
+- **Pilot:** Move your ship to avoid asteroids and enemies.  
+- **Destroy:** Your ship fires automatically — destroy enemies to earn points.  
+- **Upgrade:** Reach score milestones to boost fire rate and unlock spread shots.  
+- **Survive:** The game ends on collision with an enemy.
 
-Desktop
+---
 
-Move Ship
+## 💻 Technology Stack
 
-W/A/S/D or Arrow Keys
+- **HTML5** — Canvas rendering & structure  
+- **CSS3 (Tailwind CSS)** — Styling, layout, mobile responsiveness  
+- **JavaScript (Vanilla JS)** — Core game logic, input handling, physics  
 
-Desktop
+---
 
-Pause Game
+## ⚙️ Local Setup & Installation
 
-P
+### 1. Clone the Repository
 
-Mobile/Tablet
-
-Move Ship
-
-On-Screen D-Pad Buttons
-
-All
-
-Fire
-
-Automatic
-
-Objective
-
-Pilot: Move your ship to avoid collisions with asteroids.
-
-Destroy: Your ship fires automatically. Destroy asteroids to earn points.
-
-Upgrade: Reach score milestones to upgrade your weapon system, increasing fire rate and unlocking multi-shot capability.
-
-Survive: The game ends upon collision with an enemy.
-
-💻 Technology Stack
-
-HTML5: Structure and Canvas for rendering.
-
-CSS3 (Tailwind CSS): Styling, layout, and mobile-first responsiveness.
-
-JavaScript (Vanilla JS): Core game logic, input handling, physics, and rendering loops.
-
-⚙️ Local Setup and Installation
-
-If you wish to clone and run this project locally:
-
-Clone the Repository:
-
-git clone [https://github.com/mohakamran/space-game.git](https://github.com/mohakamran/space-game.git)
+```bash
+git clone https://github.com/mohakamran/space-game.git
 cd space-game
-
-
-Run:
-Open the index.html file directly in your web browser. No local server is required.
